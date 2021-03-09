@@ -8,6 +8,8 @@ import (
 	"os"
 	"regexp"
 	"sort"
+
+	"golang.org/x/exp/utf8string"
 )
 
 type Bank struct{
@@ -20,7 +22,7 @@ type Bank struct{
 
 type ZenginCode struct{
 	Bank
-	Branches map[string]Bank `json:"branches"`
+	// Branches map[string]Bank `json:"branches"`
 }
 
 type HiraganaList struct{
@@ -77,11 +79,11 @@ func main() {
     // 選択UI用バンクデータ
     hiraganaList := []HiraganaList{
         {Parent: "あ行",ChildList: []string{"あ","い","う","え","お"}},
-        {Parent: "か行",ChildList: []string{"か","き","く","け","こ"}},
-        {Parent: "さ行",ChildList: []string{"さ","し","す","せ","そ"}},
-        {Parent: "た行",ChildList: []string{"た","ち","つ","て","と"}},
+        {Parent: "か行",ChildList: []string{"かが","きぎ","くぐ","けげ","こご"}},
+        {Parent: "さ行",ChildList: []string{"さざ","しじ","すず","せぜ","そぞ"}},
+        {Parent: "た行",ChildList: []string{"ただ","ちぢ","つづ","てで","とど"}},
         {Parent: "な行",ChildList: []string{"な","に","ぬ","ね","の"}},
-        {Parent: "は行",ChildList: []string{"は","ひ","ふ","へ","ほ"}},
+        {Parent: "は行",ChildList: []string{"はばぱ","ひびぴ","ふぶぷ","へべぺ","ほぼぽ",}},
         {Parent: "ま行",ChildList: []string{"ま","み","む","め","も"}},
         {Parent: "や行",ChildList: []string{"や","ゆ","よ"}},
         {Parent: "ら行",ChildList: []string{"ら","り","る","れ","ろ"}},
@@ -93,13 +95,17 @@ func main() {
 
         var childData []BankSelectDataChildren
         for _, hiraganaChild := range hiragana.ChildList{
+
+            labelText := utf8string.NewString(hiraganaChild)
+
             child := BankSelectDataChildren{
-                Label: hiraganaChild,BankList: []ZenginCode{},
+                Label: labelText.Slice(0,1),
+                BankList: []ZenginCode{},
             }
 
             // 銀行一覧から該当の銀行を取得
             for _, bank := range bankData{
-                r := regexp.MustCompile("^" + hiraganaChild)
+                r := regexp.MustCompile("^[" + hiraganaChild + "]")
                 if r.MatchString(bank.Hira){
                     child.BankList = append(child.BankList, bank)
                 }
