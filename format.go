@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"io"
 	"log"
 	"net/http"
@@ -115,6 +116,10 @@ func main() {
 		selectBankData = append(selectBankData, data)
 	}
 
+	// 出力先の取得
+	f := flag.String("output","output.json","jsonの出力先")
+	flag.Parse()
+
 	// ファイル出力
 	outputJSON, err := json.Marshal(selectBankData)
 	if err != nil {
@@ -122,5 +127,5 @@ func main() {
 	}
 
 	content := []byte(outputJSON)
-	os.WriteFile("output.json", content, os.ModePerm)
+	os.WriteFile(*f, content, os.ModePerm)
 }
