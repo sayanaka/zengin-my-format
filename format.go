@@ -3,14 +3,12 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"regexp"
 	"sort"
-
-	"golang.org/x/exp/utf8string"
 )
 
 type Bank struct{
@@ -48,7 +46,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 
 	// bodyから、module.export=と、末尾カンマを外す
 	r := regexp.MustCompile(`^module.exports\s?=\s?|;\n?$`)
@@ -60,6 +58,50 @@ func main() {
 		log.Fatal(err)
 	}
 
+		// メインバンクのコード一覧
+	mainBankCodeList := []string{
+		"0001", // みずほ
+		"0005", // 三菱UFJ
+		"0009", // 三井住友
+		"0010", // りそな
+		"0017", // 埼玉りそな
+		"0033", // ジャパンネット
+		"0036", // 楽天
+		"9900", // ゆうちょ
+	};
+
+	selectBankData := createBankSelectUiData(jsonData,mainBankCodeList)
+	mainBankData := createMainBankData(jsonData,mainBankCodeList)
+
+	// 出力先の取得
+	fSelectBank := flag.String("output1","./output.json","選択UI用jsonの出力先")
+	fMainBank := flag.String("output2","./output_main.json","メインバンクjsonの出力先")
+	flag.Parse()
+
+	// ファイル出力（選択UI用バンクデータ）
+	outputSelectBank, err := json.Marshal(selectBankData)
+	if err != nil {
+		log.Fatal(err)
+	}
+	contentSelectBank := []byte(outputSelectBank)
+	ioutil.WriteFile(*fSelectBank, contentSelectBank, os.ModePerm)
+
+	// ファイル出力（選択UI用バンクデータ）
+	outputMainBank, err := json.Marshal(mainBankData)
+	if err != nil {
+		log.Fatal(err)
+	}
+	contentMainBank := []byte(outputMainBank)
+	ioutil.WriteFile(*fMainBank, contentMainBank, os.ModePerm)
+}
+
+func getRuneAt(s string, i int) rune {
+    rs := []rune(s)
+    return rs[i]
+}
+
+// 選択UI用バンクデータの作成
+func createBankSelectUiData(jsonData map[string]ZenginCode, mainBankCodeList []string)[]BankSelectData{
 	// object => Array
 	var bankData []ZenginCode
 	for _, bank := range jsonData {
@@ -90,10 +132,8 @@ func main() {
 		var childData []BankSelectDataChildren
 		for _, hiraganaChild := range hiragana.ChildList{
 
-			labelText := utf8string.NewString(hiraganaChild)
-
 			child := BankSelectDataChildren{
-				Label: labelText.Slice(0,1),
+				Label: string(getRuneAt(hiraganaChild, 0)),
 				BankList: []ZenginCode{},
 			}
 
@@ -101,6 +141,10 @@ func main() {
 			for _, bank := range bankData{
 				r := regexp.MustCompile("^[" + hiraganaChild + "]")
 				if r.MatchString(bank.Hira){
+					// メインバンクの場合はnameに「銀行」を付加
+					if contains(bank.Code, mainBankCodeList){
+						bank.Name = bank.Name + "銀行"
+					}
 					child.BankList = append(child.BankList, bank)
 				}
 			}
@@ -116,16 +160,29 @@ func main() {
 		selectBankData = append(selectBankData, data)
 	}
 
-	// 出力先の取得
-	f := flag.String("output","output.json","jsonの出力先")
-	flag.Parse()
+	return selectBankData
+}
 
-	// ファイル出力
-	outputJSON, err := json.Marshal(selectBankData)
-	if err != nil {
-		log.Fatal(err)
+// メインバンクデータの作成
+func createMainBankData(jsonData map[string]ZenginCode, mainBankCodeList []string)[]ZenginCode{
+	var mainBankData []ZenginCode
+	for _, mainBankCode := range mainBankCodeList {
+		appendBank := jsonData[mainBankCode]
+		// メインバンクの場合はnameに「銀行」を付加
+		if contains(appendBank.Code, mainBankCodeList){
+			appendBank.Name = appendBank.Name + "銀行"
+		}
+		mainBankData = append(mainBankData, appendBank)
 	}
 
-	content := []byte(outputJSON)
-	os.WriteFile(*f, content, os.ModePerm)
+	return mainBankData
+}
+
+func contains(target string, list []string) bool {
+	for _, v := range list {
+		if target == v {
+			return true
+		}
+	}
+	return false
 }
